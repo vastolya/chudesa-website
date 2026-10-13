@@ -81,7 +81,8 @@ void main(){
   vec3 p0 = displaced(p);
   vec3 p1 = displaced(normalize(p + t * e) * r);
   vec3 p2 = displaced(normalize(p + b * e) * r);
-  vec3 dn = normalize(cross(p1 - p0, p2 - p0));
+  vec3 cr = cross(p1 - p0, p2 - p0);
+  vec3 dn = length(cr) > 1e-7 ? normalize(cr) : n;
   if (dot(dn, n) < 0.0) dn = -dn;
 
   vNoise = field(p);
@@ -109,10 +110,10 @@ vec3 pal(float t){
 }
 
 void main(){
-  vec3 N = normalize(vNormal);
+  vec3 N = vNormal / max(length(vNormal), 1e-5);
   vec3 V = normalize(cameraPosition - vWorld);
   float ndv = max(dot(N, V), 0.0);
-  float fres = pow(1.0 - ndv, 2.2);
+  float fres = pow(clamp(1.0 - ndv, 0.0, 1.0), 2.2);
 
   vec3 irid = pal(fres * 1.1 + vNoise * 0.9 + uTime * 0.03);
   vec3 lime = vec3(0.78, 1.0, 0.18);
@@ -133,6 +134,6 @@ void main(){
   // inverted mood over the lime section
   col = mix(col, vec3(0.04) + irid * fres * 0.6, uTheme);
 
-  gl_FragColor = vec4(pow(col, vec3(0.9)), 1.0);
+  gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(0.9)), 1.0);
 }
 `;

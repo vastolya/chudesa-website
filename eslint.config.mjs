@@ -5,6 +5,11 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // R3F: shader uniforms and three objects are mutated per frame by design
+  {
+    files: ["src/components/forest/**", "src/components/scene/**"],
+    rules: { "react-hooks/immutability": "off", "react-hooks/refs": "off" },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
