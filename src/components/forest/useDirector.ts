@@ -26,6 +26,7 @@ export function useDirector() {
     const say = (t: string, tone?: "story" | "riddle" | "hint" | "wall") => q().say(t, tone);
     document.documentElement.classList.add("forest-mode");
     (window as unknown as { __forest: typeof live }).__forest = live; // debug / screenshots
+    (window as unknown as { __quest: unknown }).__quest = useQuest; // TEMP
 
     let raf = 0;
     let firstStep = false;

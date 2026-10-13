@@ -71,16 +71,17 @@ function FocusDriver({ dof, vig }: { dof: React.RefObject<DepthOfFieldEffect | n
   return null;
 }
 
-export default function ForestCanvas() {
+export default function ForestCanvas({ onLost }: { onLost?: () => void }) {
   const q = useQuality((x) => x.s);
   const coarse = useQuality((x) => x.coarse);
   const tier = useQuality((x) => x.tier);
   const dof = useRef<DepthOfFieldEffect>(null);
   const vig = useRef<VignetteEffect>(null);
   // depth of field costs two extra passes every frame even at zero blur —
-  // so it only exists while a wonder is held
+  // so it only exists while a wonder is held. Mounting it recompiles the whole effect
+  // pass at the exact moment the wonder appears; on mid GPUs that spike lost the context.
   const holding = useQuest((x) => !!x.card);
-  const withDof = (tier === "medium" || tier === "high") && holding;
+  const withDof = tier === "high" && holding;
   const noBloom = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("nobloom"); // debug
 
   return (
@@ -91,6 +92,17 @@ export default function ForestCanvas() {
       camera={{ position: [0, 1.7, 6], fov: 64, near: 0.05, far: 200 }}
       gl={{ antialias: false, powerPreference: "high-performance", stencil: false }}
       style={{ touchAction: "none" }}
+      onCreated={({ gl }) => {
+        // a driver reset kills the context: the loop keeps running (compass turns), the picture freezes
+        gl.domElement.addEventListener(
+          "webglcontextlost",
+          (e) => {
+            e.preventDefault();
+            onLost?.();
+          },
+          { once: true }
+        );
+      }}
     >
       <FpsGuard />
       <Atmosphere />

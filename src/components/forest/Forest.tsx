@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ForestUI from "./ForestUI";
 import { useDirector } from "./useDirector";
 import { generateWorld } from "@/lib/world";
@@ -30,9 +30,17 @@ export default function Forest() {
 
   useDirector();
 
+  // the GPU dropped the WebGL context: lower quality and grow a fresh canvas (new context)
+  const [gen, setGen] = useState(0);
+  const onLost = useCallback(() => {
+    useQuality.getState().recover();
+    setTimeout(() => setGen((g) => g + 1), 300);
+    useQuest.getState().say("Лес моргнул — видеокарта попросила передышку. Мы упростили картинку, чудеса на месте.", "wall");
+  }, []);
+
   return (
     <div className="forest">
-      <div className="forest__stage">{ready && <ForestCanvas />}</div>
+      <div className="forest__stage">{ready && <ForestCanvas key={gen} onLost={onLost} />}</div>
       <ForestUI />
       <div className="grain" aria-hidden />
     </div>

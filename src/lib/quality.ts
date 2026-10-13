@@ -72,6 +72,8 @@ type Q = {
   s: QualitySettings;
   init: () => void;
   downgrade: () => boolean;
+  /** the GPU dropped the WebGL context: step down at least once, and never stay above "low" */
+  recover: () => void;
 };
 
 export const useQuality = create<Q>((set, get) => ({
@@ -89,5 +91,10 @@ export const useQuality = create<Q>((set, get) => ({
     const tier = ORDER[i - 1];
     set({ tier, s: settingsFor(tier, get().coarse) });
     return true;
+  },
+  recover: () => {
+    const i = Math.max(0, Math.min(ORDER.indexOf(get().tier) - 1, ORDER.indexOf("low")));
+    const tier = ORDER[i];
+    set({ tier, s: settingsFor(tier, get().coarse) });
   },
 }));

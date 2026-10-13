@@ -118,7 +118,7 @@ function Held({ id }: { id: string }) {
       <PerspectiveCamera makeDefault position={[0, 0, 0]} fov={fov} near={0.01} far={10} />
       <group ref={holder} scale={0}>
         <group ref={body}>
-          <WonderBody id={w.id} drive={drive} fog={false} colA={sp.colA} colB={sp.colB} cheap={useQuality.getState().tier === "minimal"} />
+          <WonderBody id={w.id} drive={drive} fog={false} colA={sp.colA} colB={sp.colB} cheap={useQuality.getState().s.cheap} />
         </group>
         <sprite scale={[5.5, 5.5, 1]}>
           <spriteMaterial map={glow} color={sp.glow} transparent opacity={0.3} depthWrite={false} blending={THREE.AdditiveBlending} />
