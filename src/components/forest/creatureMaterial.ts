@@ -108,7 +108,9 @@ vec3 shape(vec3 d){
 float field(vec3 d){
   float t = uTime * 0.25 + uSeed * 10.0;
   float n = snoise(d * uFreq + vec3(t, t * 0.6, -t));
+#ifndef CHEAP
   n += 0.35 * snoise(d * uFreq * 2.4 - vec3(t * 1.4));
+#endif
   float m = smoothstep(0.6, 1.0, dot(d, normalize(uTouch)));
   return n * (uAmp + uExcite * 0.1) + m * uExcite * 0.25;
 }
@@ -294,6 +296,7 @@ export function makeCreatureMaterial(opts: {
   taper?: number;
   spikes?: number;
   lobes?: number;
+  cheap?: boolean;
 }) {
   const style = opts.style ?? 0;
   const seeThrough = style === 4 || style === 6;
@@ -328,6 +331,7 @@ export function makeCreatureMaterial(opts: {
       uSpikes: { value: opts.spikes ?? 0 },
       uLobes: { value: opts.lobes ?? 0 },
     },
+    defines: opts.cheap ? { CHEAP: "" } : {},
     transparent: true,
     depthWrite: !seeThrough,
     side: style === 4 ? THREE.DoubleSide : THREE.FrontSide,
@@ -385,8 +389,9 @@ export function getBeamTexture() {
 }
 
 /** Material for a whole species: texture, palette and silhouette in one go. */
-export function speciesMaterial(sp: import("@/lib/species").Species, seed = 0) {
+export function speciesMaterial(sp: import("@/lib/species").Species, seed = 0, cheap = false) {
   return makeCreatureMaterial({
+    cheap,
     hue: seed,
     form: sp.form,
     seed,

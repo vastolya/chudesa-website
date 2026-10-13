@@ -77,7 +77,10 @@ export default function ForestCanvas() {
   const tier = useQuality((x) => x.tier);
   const dof = useRef<DepthOfFieldEffect>(null);
   const vig = useRef<VignetteEffect>(null);
-  const withDof = tier !== "low";
+  // depth of field costs two extra passes every frame even at zero blur —
+  // so it only exists while a wonder is held
+  const holding = useQuest((x) => !!x.card);
+  const withDof = (tier === "medium" || tier === "high") && holding;
   const noBloom = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("nobloom"); // debug
 
   return (
@@ -104,7 +107,7 @@ export default function ForestCanvas() {
       <FocusDriver dof={dof} vig={vig} />
       <EffectComposer multisampling={coarse ? 0 : q.msaa}>
         {withDof && <DepthOfField ref={dof} focusDistance={0.4} focusRange={0.3} bokehScale={0} resolutionScale={0.5} />}
-        <Bloom intensity={noBloom ? 0 : 0.7} key={noBloom ? "nb" : "b"} luminanceThreshold={1.1} luminanceSmoothing={0.35} mipmapBlur radius={0.6} resolutionScale={q.bloomScale} />
+        <Bloom intensity={noBloom ? 0 : 0.7} key={noBloom ? "nb" : "b"} luminanceThreshold={1.1} luminanceSmoothing={0.35} mipmapBlur radius={0.6} levels={q.bloomLevels} resolutionScale={q.bloomScale} />
         {/* the composer renders to an HDR target, so tone mapping must happen here — otherwise highlights clip hard */}
         <ToneMapping mode={ToneMappingMode.NEUTRAL} />
         <Vignette ref={vig} offset={0.28} darkness={0.78} />

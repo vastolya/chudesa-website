@@ -5,12 +5,13 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { mulberry32 } from "@/lib/noise";
 import { getWorld } from "@/lib/world";
+import { useQuality } from "@/lib/quality";
 
 const SIZE = 240;
-const TEX = 2048;
+
 
 /** Paint snow, trodden trails and footprints into one big texture. */
-function paintGround() {
+function paintGround(TEX: number) {
   const world = getWorld();
   const c = document.createElement("canvas");
   c.width = c.height = TEX;
@@ -98,7 +99,9 @@ export function Terrain() {
   }, [world]);
 
   const mat = useMemo(() => {
-    const m = new THREE.MeshStandardMaterial({ map: paintGround(), roughness: 0.97, color: "#ffffff" });
+    const q = useQuality.getState().s;
+    const m = new THREE.MeshStandardMaterial({ map: paintGround(q.groundTex), roughness: 0.97, color: "#ffffff" });
+    if (q.cheap) return m; // no glitter pass on weak machines
     // glitter: tiny view-dependent sparkles in the snow
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = time;

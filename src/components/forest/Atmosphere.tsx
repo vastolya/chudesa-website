@@ -119,13 +119,15 @@ function AuroraRibbon({ angle, radius, height, span, a, b, speed }: { angle: num
 }
 
 function SkyObjects() {
+  const stars = useQuality((x) => x.s.stars);
+  const auroras = useQuality((x) => x.s.auroras);
   const group = useRef<THREE.Group>(null!);
   const glow = useMemo(() => getGlowTexture(), []);
   useFrame(({ camera }) => group.current.position.set(camera.position.x, 0, camera.position.z));
   const moon = MOON_DIR.clone().multiplyScalar(120);
   return (
     <group ref={group}>
-      <Stars radius={110} depth={30} count={3500} factor={3.2} fade speed={0.3} />
+      <Stars key={stars} radius={110} depth={30} count={stars} factor={3.2} fade speed={0.3} />
       <mesh position={moon}>
         <sphereGeometry args={[4.2, 32, 32]} />
         <meshBasicMaterial color={[1.6, 1.65, 1.8]} fog={false} toneMapped={false} />
@@ -134,8 +136,8 @@ function SkyObjects() {
         <spriteMaterial map={glow} color="#8fa9ff" transparent opacity={0.5} fog={false} depthWrite={false} blending={THREE.AdditiveBlending} />
       </sprite>
       <AuroraRibbon angle={0.5} radius={125} height={38} span={1.6} a="#5dff8f" b="#7a5cff" speed={1} />
-      <AuroraRibbon angle={-0.2} radius={135} height={46} span={1.2} a="#c8ff2e" b="#ff7ad9" speed={0.8} />
-      <AuroraRibbon angle={2.6} radius={130} height={42} span={1.3} a="#3dffd0" b="#8f7bff" speed={1.2} />
+      {auroras > 1 && <AuroraRibbon angle={-0.2} radius={135} height={46} span={1.2} a="#c8ff2e" b="#ff7ad9" speed={0.8} />}
+      {auroras > 2 && <AuroraRibbon angle={2.6} radius={130} height={42} span={1.3} a="#3dffd0" b="#8f7bff" speed={1.2} />}
     </group>
   );
 }

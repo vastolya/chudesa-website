@@ -42,11 +42,12 @@ function Creature({ position, size, seed, species, morphSpeed, drift }: Creature
   // level-of-detail: tessellation by size, quality tier and distance
   const lods = useMemo(() => {
     // never drop to blocky low-poly: the smallest level is still a smooth sphere
-    const base = Math.max(14, Math.round((size > 0.9 ? 44 : size > 0.35 ? 28 : 16) * q.creatureDetail));
-    return [sphereGeo(base), sphereGeo(Math.max(10, Math.round(base / 2))), sphereGeo(Math.max(7, Math.round(base / 3)))];
-  }, [size, q.creatureDetail]);
+    const f = q.detailFloor;
+    const base = Math.max(f, Math.round((size > 0.9 ? 44 : size > 0.35 ? 28 : 16) * q.creatureDetail));
+    return [sphereGeo(base), sphereGeo(Math.max(Math.round(f * 0.75), Math.round(base / 2))), sphereGeo(Math.max(Math.round(f * 0.55), Math.round(base / 3)))];
+  }, [size, q.creatureDetail, q.detailFloor]);
   const lod = useRef(-1);
-  const mat = useMemo(() => speciesMaterial(species, seed), [species, seed]);
+  const mat = useMemo(() => speciesMaterial(species, seed, q.cheap), [species, seed, q.cheap]);
   const glow = useMemo(() => getGlowTexture(), []);
   const s = useRef({ off: new THREE.Vector3(), touched: false, base: new THREE.Vector3(...position), excite: 0 });
 

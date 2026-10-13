@@ -22,6 +22,8 @@ function Wonder({ w }: { w: WonderDef }) {
   const catchWonder = useQuest((s) => s.catchWonder);
   const say = useQuest((s) => s.say);
   const drawDist = useQuality((x) => x.s.drawDist);
+  const wonderDist = useQuality((x) => x.s.wonderDist);
+  const cheap = useQuality((x) => x.s.cheap);
   const sp = WONDER_SPECIES[w.id];
 
   const group = useRef<THREE.Group>(null!);
@@ -31,7 +33,7 @@ function Wonder({ w }: { w: WonderDef }) {
   const hit = useRef<THREE.Mesh>(null!);
   const swarm = useRef<(THREE.Group | null)[]>([]);
   // what the body shaders read every frame
-  const drive = useRef<Drive>({ opacity: 0, glow: 0.3 }).current;
+  const drive = useRef<Drive>({ opacity: 0, glow: 0.3, active: false }).current;
 
   const ground = useMemo(() => getWorld().height(w.x, w.z), [w]);
   const home = useMemo(() => new THREE.Vector3(w.x, ground + w.y, w.z), [w, ground]);
@@ -107,6 +109,10 @@ function Wonder({ w }: { w: WonderDef }) {
     const homeD = Math.hypot(live.x - w.x, live.z - w.z);
     const far = homeD > drawDist && w.mech !== "behind";
     group.current.visible = !far;
+    // the body itself only exists for the eye up close; from afar the beacon and halo speak for it
+    const awake = w.mech === "behind" || homeD < wonderDist;
+    drive.active = awake && !far;
+    body.current.visible = awake && w.mech !== "swarm";
     if (far) return;
     const near = homeD < REACH;
     let target = 1;
@@ -232,7 +238,7 @@ function Wonder({ w }: { w: WonderDef }) {
     group.current.position.copy(pos);
     group.current.scale.setScalar(w.mech === "swarm" ? 1 : w.size * (0.6 + st.vis * 0.4) * (1 + st.punch * 0.25));
     body.current.rotation.y += dt * (w.mech === "orbit" ? 1.2 : 0.3);
-    body.current.visible = w.mech !== "swarm";
+    swarm.current.forEach((m) => m && (m.visible = awake));
     (halo.current.material as THREE.SpriteMaterial).opacity = (w.mech === "swarm" ? 0.45 : st.vis * 0.5) * (near ? 1 : 0.6);
   });
 
@@ -269,7 +275,7 @@ function Wonder({ w }: { w: WonderDef }) {
     <>
       {!found && <Beacon x={w.x} z={w.z} color={w.color} opacity={0.13} />}
       <group ref={group} position={home} scale={w.mech === "swarm" ? 1 : w.size}>
-        <group ref={body}>{w.mech !== "swarm" && <WonderBody id={w.id} drive={drive} fog colA={sp.colA} colB={sp.colB} />}</group>
+        <group ref={body}>{w.mech !== "swarm" && <WonderBody id={w.id} drive={drive} fog colA={sp.colA} colB={sp.colB} cheap={cheap} />}</group>
         {/* cheap hit volume for the crosshair ray */}
         <mesh ref={hit} visible={false}>
           <sphereGeometry args={[w.mech === "orbit" ? 2.2 : 1.7, 12, 12]} />

@@ -88,10 +88,12 @@ void main(){
 }
 `;
 
-export type Drive = { opacity: number; glow: number };
+/** what the owner tells a body every frame; active=false → nothing is updated (out of sight) */
+export type Drive = { opacity: number; glow: number; active?: boolean };
 
-export function shader(opts: { vertex?: string; fragment: string; uniforms?: Record<string, THREE.IUniform>; fog: boolean; additive?: boolean; double?: boolean; depthWrite?: boolean }) {
+export function shader(opts: { vertex?: string; fragment: string; uniforms?: Record<string, THREE.IUniform>; fog: boolean; additive?: boolean; double?: boolean; depthWrite?: boolean; defines?: Record<string, string> }) {
   return new THREE.ShaderMaterial({
+    defines: opts.defines ?? {},
     vertexShader: opts.vertex ?? VERT_BASIC,
     fragmentShader: opts.fragment,
     uniforms: { ...commonUniforms(opts.fog), ...(opts.uniforms ?? {}) },

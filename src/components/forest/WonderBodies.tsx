@@ -18,11 +18,13 @@ import { GLSL_COMMON, shader, type Drive } from "./wonderGlsl";
  *  automation — torus knot with streams flowing endlessly along the tube (animated mesh lines)
  */
 
-type BodyProps = { drive: Drive; fog: boolean; colA: string; colB: string };
+type BodyProps = { drive: Drive; fog: boolean; colA: string; colB: string; cheap?: boolean };
+const asleep = (d: Drive) => d.active === false;
 
 /** keep shared uniforms of a set of materials in step with the drive */
 function useDriven(mats: THREE.ShaderMaterial[], drive: Drive, opacityScale = 1) {
   useFrame((state) => {
+    if (asleep(drive)) return;
     for (const m of mats) {
       m.uniforms.uTime.value = state.clock.elapsedTime;
       m.uniforms.uOpacity.value = drive.opacity * opacityScale;
@@ -208,6 +210,7 @@ function Constellation({ drive, fog, colA, colB }: BodyProps) {
   useDriven([mats.web, mats.route, mats.stars, mats.core], drive);
   const g = useRef<THREE.Group>(null!);
   useFrame((state, dt) => {
+    if (asleep(drive)) return;
     g.current.rotation.y += dt * 0.12;
     mats.stars.uniforms.uPx.value = state.gl.domElement.height * 0.5;
   });
@@ -360,7 +363,9 @@ function Hologram({ drive, fog, colA }: BodyProps) {
   );
   useDriven([holo, beam, ring], drive);
   const knot = useRef<THREE.Mesh>(null!);
-  useFrame((_, dt) => (knot.current.rotation.y += dt * 0.5));
+  useFrame((_, dt) => {
+    if (!asleep(drive)) knot.current.rotation.y += dt * 0.5;
+  });
   return (
     <group>
       <mesh ref={knot} geometry={geo} material={holo} />
@@ -376,9 +381,9 @@ function Hologram({ drive, fog, colA }: BodyProps) {
 }
 
 /* ───────── web: a sphere of glowing voxels assembling itself, pixel by pixel ───────── */
-function Voxels({ drive, fog, colA, colB }: BodyProps) {
+function Voxels({ drive, fog, colA, colB, cheap = false }: BodyProps) {
   const { geo, count } = useMemo(() => {
-    const step = 0.13;
+    const step = cheap ? 0.17 : 0.13;
     const targets: number[] = [];
     const rand: number[] = [];
     let s = 9;
@@ -392,18 +397,19 @@ function Voxels({ drive, fog, colA, colB }: BodyProps) {
             rand.push(r());
           }
         }
-    const g = new RoundedBoxGeometry(0.112, 0.112, 0.112, 2, 0.022);
+    const sz = step * 0.86;
+    const g = new RoundedBoxGeometry(sz, sz, sz, cheap ? 1 : 2, sz * 0.2);
     const ig = new THREE.InstancedBufferGeometry().copy(g as unknown as THREE.InstancedBufferGeometry);
     ig.setAttribute("aTarget", new THREE.InstancedBufferAttribute(new Float32Array(targets), 3));
     ig.setAttribute("aRand", new THREE.InstancedBufferAttribute(new Float32Array(rand), 1));
     ig.instanceCount = rand.length;
     return { geo: ig, count: rand.length };
-  }, []);
+  }, [cheap]);
   const mat = useMemo(
     () =>
       shader({
         fog,
-        uniforms: { uA: { value: new THREE.Color(colA) }, uB: { value: new THREE.Color(colB) }, uBuild: { value: 0 } },
+        uniforms: { uA: { value: new THREE.Color(colA) }, uB: { value: new THREE.Color(colB) }, uBuild: { value: 0 }, uHalf: { value: (cheap ? 0.17 : 0.13) * 0.43 } },
         vertex: /* glsl */ `
           uniform float uTime; uniform float uBuild;
           attribute vec3 aTarget; attribute float aRand;
@@ -419,10 +425,10 @@ function Voxels({ drive, fog, colA, colB }: BodyProps) {
           }`,
         fragment: /* glsl */ `
           ${GLSL_COMMON}
-          uniform vec3 uA; uniform vec3 uB;
+          uniform vec3 uA; uniform vec3 uB; uniform float uHalf;
           varying vec3 vW; varying vec3 vL; varying float vWave; varying float vR; varying vec3 vT;
           void main(){
-            vec3 a = abs(vL) / 0.056;
+            vec3 a = abs(vL) / uHalf;
             // glowing cube edges: where two of the three local coords are near the surface
             float m1 = max(a.x, max(a.y, a.z));
             float m2 = a.x + a.y + a.z - m1 - min(a.x, min(a.y, a.z));
@@ -433,11 +439,12 @@ function Voxels({ drive, fog, colA, colB }: BodyProps) {
             gl_FragColor = vec4(fogIt(col, vW), uOpacity);
           }`,
       }),
-    [fog, colA, colB]
+    [fog, colA, colB, cheap]
   );
   useDriven([mat], drive);
   const s = useRef({ b: 0 });
   useFrame((_, dt) => {
+    if (asleep(drive)) return;
     // assembles while visible, falls apart when hidden
     s.current.b += ((drive.opacity > 0.3 ? 1.05 : 0) - s.current.b) * (1 - Math.exp(-dt * 1.2));
     mat.uniforms.uBuild.value = s.current.b;
@@ -472,8 +479,13 @@ const JELLY_FRAG = /* glsl */ `
     if (!gl_FrontFacing) N = -N;
     vec3 V = normalize(cameraPosition - vW);
     float fres = pow(1.0 - abs(dot(N, V)), 2.0);
+#ifdef CHEAP
+    float wv = sin(vP.x * 9.0 + uTime) * sin(vP.y * 11.0 - uTime * 0.7) * sin(vP.z * 10.0 + 1.3);
+    float veins = smoothstep(0.75, 0.98, abs(wv) * 1.6);
+#else
     float e = voronoiEdge(vP * 3.2);
     float veins = 1.0 - smoothstep(0.0, 0.09, e);
+#endif
     float crown = smoothstep(0.1, 0.9, vP.y);
     vec3 col = uB * 0.25 + uA * veins * 1.2 + uA * fres * 0.9 + uA * crown * 0.25;
     col += uA * uGlow * 0.3;
@@ -481,9 +493,10 @@ const JELLY_FRAG = /* glsl */ `
     gl_FragColor = vec4(fogIt(col, vW), a * uOpacity);
   }`;
 
-function jellyMaterial(fog: boolean, colA: string, colB: string, phase: number) {
+function jellyMaterial(fog: boolean, colA: string, colB: string, phase: number, cheap: boolean) {
   return shader({
     fog,
+    defines: cheap ? { CHEAP: "" } : {},
     double: true,
     depthWrite: false,
     vertex: JELLY_VERT,
@@ -493,9 +506,9 @@ function jellyMaterial(fog: boolean, colA: string, colB: string, phase: number) 
 }
 const bellGeo = (w: number, h: number) => new THREE.SphereGeometry(1, w, h, 0, Math.PI * 2, 0, Math.PI * 0.56);
 
-function Jellyfish({ drive, fog, colA, colB }: BodyProps) {
-  const bell = useMemo(() => bellGeo(56, 28), []);
-  const mat = useMemo(() => jellyMaterial(fog, colA, colB, 0), [fog, colA, colB]);
+function Jellyfish({ drive, fog, colA, colB, cheap = false }: BodyProps) {
+  const bell = useMemo(() => (cheap ? bellGeo(32, 16) : bellGeo(56, 28)), [cheap]);
+  const mat = useMemo(() => jellyMaterial(fog, colA, colB, 0, cheap), [fog, colA, colB, cheap]);
   const T = 10;
   const SEG = 28;
   const tent = useMemo(() => {
@@ -517,6 +530,7 @@ function Jellyfish({ drive, fog, colA, colB }: BodyProps) {
   );
   useDriven([mat, tentMat], drive);
   useFrame((state) => {
+    if (asleep(drive)) return;
     const t = state.clock.elapsedTime;
     const pulse = Math.sin(t * 1.6) * 0.5 + 0.5;
     const arr = tent.attributes.position.array as Float32Array;
@@ -556,7 +570,8 @@ export const MiniJelly = forwardRef<THREE.Group, { drive: Drive; fog: boolean; c
   { drive, fog, colA, colB, phase, scale },
   ref
 ) {
-  const mat = useMemo(() => jellyMaterial(fog, colA, colB, phase), [fog, colA, colB, phase]);
+  // swarm members are tiny on screen: always the cheap veins
+  const mat = useMemo(() => jellyMaterial(fog, colA, colB, phase, true), [fog, colA, colB, phase]);
   useDriven([mat], drive, 1);
   return (
     <group ref={ref} scale={scale}>
@@ -566,11 +581,11 @@ export const MiniJelly = forwardRef<THREE.Group, { drive: Drive; fog: boolean; c
 });
 
 /* ───────── automation: a chrome torus knot with streams flowing endlessly along it ───────── */
-function FlowKnot({ drive, fog, colA }: BodyProps) {
+function FlowKnot({ drive, fog, colA, cheap = false }: BodyProps) {
   const P = 3;
   const Q = 5;
   const R = 0.62;
-  const geo = useMemo(() => new THREE.TorusKnotGeometry(R, 0.15, 320, 32, P, Q), []);
+  const geo = useMemo(() => new THREE.TorusKnotGeometry(R, 0.15, cheap ? 180 : 320, cheap ? 16 : 32, P, Q), [cheap]);
   const mat = useMemo(
     () =>
       shader({
@@ -611,6 +626,7 @@ function FlowKnot({ drive, fog, colA }: BodyProps) {
   useDriven([mat, sparkMat], drive);
   const knot = useRef<THREE.Group>(null!);
   useFrame((state, dt) => {
+    if (asleep(drive)) return;
     knot.current.rotation.y += dt * 0.25;
     sparkMat.uniforms.uPx.value = state.gl.domElement.height * 0.5;
     const t = state.clock.elapsedTime;
@@ -637,8 +653,8 @@ function FlowKnot({ drive, fog, colA }: BodyProps) {
 }
 
 /** The body of a wonder by its id. */
-export function WonderBody({ id, drive, fog, colA, colB }: { id: string } & BodyProps) {
-  const p = { drive, fog, colA, colB };
+export function WonderBody({ id, drive, fog, colA, colB, cheap }: { id: string } & BodyProps) {
+  const p = { drive, fog, colA, colB, cheap };
   switch (id) {
     case "research":
       return <Prism {...p} />;
