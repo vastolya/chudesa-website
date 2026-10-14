@@ -206,7 +206,7 @@ export const useQuest = create<Quest>((set, get) => ({
 export const inspect = {
   rx: 0, // rotation driven by the mouse
   ry: 0,
-  amount: 0, // 0..1, drives depth of field / vignette
+  amount: 0, // 0..1, drives the vignette
   release: () => {},
   want: () => {},
 };

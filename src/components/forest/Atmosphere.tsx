@@ -8,7 +8,7 @@ import { live, useQuest } from "@/lib/forest";
 import { getWorld } from "@/lib/world";
 import { mulberry32 } from "@/lib/noise";
 import { getGlowTexture } from "./creatureMaterial";
-import { useQuality } from "@/lib/quality";
+import { QUALITY } from "@/lib/quality";
 
 export const FOG = "#0b1431";
 
@@ -119,8 +119,8 @@ function AuroraRibbon({ angle, radius, height, span, a, b, speed }: { angle: num
 }
 
 function SkyObjects() {
-  const stars = useQuality((x) => x.s.stars);
-  const auroras = useQuality((x) => x.s.auroras);
+  const stars = QUALITY.stars;
+  const auroras = QUALITY.auroras;
   const group = useRef<THREE.Group>(null!);
   const glow = useMemo(() => getGlowTexture(), []);
   useFrame(({ camera }) => group.current.position.set(camera.position.x, 0, camera.position.z));
@@ -146,7 +146,7 @@ function SkyObjects() {
 function Moonlight() {
   const light = useRef<THREE.DirectionalLight>(null!);
   const { scene } = useThree();
-  const q = useQuality((x) => x.s);
+  const q = QUALITY;
   const last = useRef({ x: 1e9, z: 1e9 });
   const basis = useMemo(() => {
     const right = new THREE.Vector3().crossVectors(MOON_DIR, new THREE.Vector3(0, 1, 0)).normalize();
@@ -160,7 +160,7 @@ function Moonlight() {
     return () => void scene.remove(t);
   }, [scene]);
 
-  // apply quality: map size / on-off (dispose the old map so the new size takes effect)
+  // shadow map size / on-off (dispose the old map so the new size takes effect)
   useEffect(() => {
     const l = light.current;
     l.castShadow = q.shadows;
@@ -294,7 +294,7 @@ function SnowLayer({ count, box, fall, wind, size, alpha, ground }: { count: num
 }
 
 export function Atmosphere() {
-  const q = useQuality((x) => x.s);
+  const q = QUALITY;
   return (
     <>
       <fogExp2 attach="fog" args={[FOG, 0.034]} />

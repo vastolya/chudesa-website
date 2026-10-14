@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import ForestUI from "./ForestUI";
 import { useDirector } from "./useDirector";
 import { generateWorld } from "@/lib/world";
-import { useQuality } from "@/lib/quality";
 import { inspect, landmarks, live, SPAWN, useQuest, wonders } from "@/lib/forest";
 
 const ForestCanvas = dynamic(() => import("./ForestCanvas"), { ssr: false });
@@ -18,9 +17,8 @@ export default function Forest() {
     const q = new URLSearchParams(window.location.search).get("seed");
     const seed = q && /^\d{1,9}$/.test(q) ? Number(q) : Math.floor(100000 + Math.random() * 900000);
     live.seed = seed;
-    useQuality.getState().init();
     const world = generateWorld(seed);
-    (window as unknown as { __dbg: object }).__dbg = { live, world, wonders, landmarks, quality: useQuality, quest: useQuest, inspect }; // debug / screenshots
+    (window as unknown as { __dbg: object }).__dbg = { live, world, wonders, landmarks, quest: useQuest, inspect }; // debug / screenshots
     live.x = SPAWN.x;
     live.z = SPAWN.z;
     // the world must exist before the canvas mounts
@@ -30,12 +28,11 @@ export default function Forest() {
 
   useDirector();
 
-  // the GPU dropped the WebGL context: lower quality and grow a fresh canvas (new context)
+  // the GPU dropped the WebGL context: grow a fresh canvas (new context)
   const [gen, setGen] = useState(0);
   const onLost = useCallback(() => {
-    useQuality.getState().recover();
     setTimeout(() => setGen((g) => g + 1), 300);
-    useQuest.getState().say("Лес моргнул — видеокарта попросила передышку. Мы упростили картинку, чудеса на месте.", "wall");
+    useQuest.getState().say("Лес моргнул — видеокарта попросила передышку. Чудеса на месте.", "wall");
   }, []);
 
   return (

@@ -309,7 +309,10 @@ function Crosshair() {
     }
     if (play.current) {
       const coarse = window.matchMedia("(pointer: coarse)").matches;
-      play.current.classList.toggle("on", phase === "walk" && !live.locked && !coarse && !useQuest.getState().card);
+      // at the clearing the cursor is free on purpose — to fill the form. The prompt is a
+      // full-screen dimmed layer above every panel, so there it would wash the form out.
+      const atForm = nearPlace("final") > 0;
+      play.current.classList.toggle("on", phase === "walk" && !live.locked && !coarse && !useQuest.getState().card && !atForm);
     }
   }, [phase]);
   return (

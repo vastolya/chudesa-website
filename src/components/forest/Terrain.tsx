@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { mulberry32 } from "@/lib/noise";
 import { getWorld } from "@/lib/world";
-import { useQuality } from "@/lib/quality";
+import { QUALITY } from "@/lib/quality";
 
 const SIZE = 240;
 
@@ -99,9 +99,9 @@ export function Terrain() {
   }, [world]);
 
   const mat = useMemo(() => {
-    const q = useQuality.getState().s;
+    const q = QUALITY;
     const m = new THREE.MeshStandardMaterial({ map: paintGround(q.groundTex), roughness: 0.97, color: "#ffffff" });
-    if (q.cheap) return m; // no glitter pass on weak machines
+    if (q.cheap) return m; // simplified shaders: no glitter pass
     // glitter: tiny view-dependent sparkles in the snow
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = time;

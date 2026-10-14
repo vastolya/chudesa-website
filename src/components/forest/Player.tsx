@@ -8,7 +8,7 @@ import { getWorld } from "@/lib/world";
 import { interactables, onMiss } from "@/lib/interact";
 import { sfxStep } from "@/lib/audio";
 import { getGlowTexture } from "./creatureMaterial";
-import { useQuality } from "@/lib/quality";
+import { QUALITY } from "@/lib/quality";
 
 const WALK = 1.35;
 const RUN = 2.8;
@@ -74,7 +74,7 @@ export function Player() {
   const flame = useRef<THREE.Mesh>(null);
   const spot = useRef<THREE.SpotLight>(null!);
   const warm = useRef<THREE.PointLight>(null);
-  const warmLight = useQuality((q) => q.s.warmLight);
+  const warmLight = QUALITY.warmLight;
   const target = useMemo(() => {
     const o = new THREE.Object3D();
     o.position.set(0, -0.3, -12);

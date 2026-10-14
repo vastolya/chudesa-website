@@ -245,7 +245,7 @@ void main(){
     col = mix(uColB, uColA, h) * (0.3 + 0.95 * on) * (0.25 + 0.75 * grout) + uColA * fres * 0.35;
   } else if (st == 6) {
     // jelly: translucent body, glowing veins drifting inside
-    float vein = pow(1.0 - abs(snoise(vObj * 2.6 + vec3(0.0, uTime * 0.25, 0.0))), 10.0);
+    float vein = pow(max(1.0 - abs(snoise(vObj * 2.6 + vec3(0.0, uTime * 0.25, 0.0))), 0.0), 10.0);
     col = uColB * 0.32 + uColA * vein * 1.35 + uColA * fres * 0.8 + vec3(1.0) * spec * 0.5;
     alpha = clamp(0.5 + fres * 0.35 + vein * 0.25, 0.0, 1.0);
   } else if (st == 7) {

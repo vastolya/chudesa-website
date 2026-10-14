@@ -9,7 +9,7 @@ import { sfxTick } from "@/lib/audio";
 import { getGlowTexture } from "./creatureMaterial";
 import { WONDER_SPECIES } from "@/lib/species";
 import { WonderBody } from "./WonderBodies";
-import { useQuality } from "@/lib/quality";
+import { QUALITY } from "@/lib/quality";
 import type { Drive } from "./wonderGlsl";
 
 const ease = (x: number) => 1 - Math.pow(1 - Math.min(Math.max(x, 0), 1), 3);
@@ -118,7 +118,7 @@ function Held({ id }: { id: string }) {
       <PerspectiveCamera makeDefault position={[0, 0, 0]} fov={fov} near={0.01} far={10} />
       <group ref={holder} scale={0}>
         <group ref={body}>
-          <WonderBody id={w.id} drive={drive} fog={false} colA={sp.colA} colB={sp.colB} cheap={useQuality.getState().s.cheap} />
+          <WonderBody id={w.id} drive={drive} fog={false} colA={sp.colA} colB={sp.colB} cheap={QUALITY.cheap} />
         </group>
         <sprite scale={[5.5, 5.5, 1]}>
           <spriteMaterial map={glow} color={sp.glow} transparent opacity={0.3} depthWrite={false} blending={THREE.AdditiveBlending} />

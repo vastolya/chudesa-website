@@ -10,7 +10,7 @@ import { PALETTES, WONDER_SPECIES } from "@/lib/species";
 import { pointerDist } from "./Creatures";
 import { getWorld } from "@/lib/world";
 import { interactables, onMiss } from "@/lib/interact";
-import { useQuality } from "@/lib/quality";
+import { QUALITY } from "@/lib/quality";
 import { Beacon } from "./Environment";
 import { FoilLayer, MiniJelly, WonderBody } from "./WonderBodies";
 import type { Drive } from "./wonderGlsl";
@@ -21,9 +21,9 @@ function Wonder({ w }: { w: WonderDef }) {
   const found = useQuest((s) => s.found.includes(w.id));
   const catchWonder = useQuest((s) => s.catchWonder);
   const say = useQuest((s) => s.say);
-  const drawDist = useQuality((x) => x.s.drawDist);
-  const wonderDist = useQuality((x) => x.s.wonderDist);
-  const cheap = useQuality((x) => x.s.cheap);
+  const drawDist = QUALITY.drawDist;
+  const wonderDist = QUALITY.wonderDist;
+  const cheap = QUALITY.cheap;
   const sp = WONDER_SPECIES[w.id];
 
   const group = useRef<THREE.Group>(null!);

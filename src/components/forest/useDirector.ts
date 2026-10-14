@@ -40,6 +40,7 @@ export function useDirector() {
     let spinSaidAt = 0;
     let lastYaw = 0;
     let jumpSaid = false;
+    let wasHolding = false;
     const zoneEnter = new Map<string, number>();
     const hinted = new Set<string>();
     const leftBehind = new Set<string>();
@@ -52,8 +53,12 @@ export function useDirector() {
       // holding a wonder pauses walking (the mouse turns the wonder instead)
       const holding = !!q().card;
       live.frozen = phase !== "walk" || holding;
-      // holding a wonder frees the cursor: drag turns the wonder, the panel has real buttons
-      if (holding && document.pointerLockElement) document.exitPointerLock();
+      // holding a wonder frees the cursor: drag turns the wonder, the panel has real buttons.
+      // Only on the moment it is caught: the release buttons grab the mouse straight back while
+      // the wonder is still flying off, and unlocking every frame threw that lock away again —
+      // the player had to click the forest to pick the lantern up after every wonder.
+      if (holding && !wasHolding && document.pointerLockElement) document.exitPointerLock();
+      wasHolding = holding;
       document.documentElement.classList.toggle("is-holding", holding);
 
       if (!live.frozen) {
@@ -201,7 +206,8 @@ export function useDirector() {
     const onLock = () => {
       live.locked = !!document.pointerLockElement;
       document.documentElement.classList.toggle("is-locked", live.locked);
-      if (!live.locked && q().phase === "walk" && !q().card && !unlockSaid) {
+      // at the clearing the cursor is released on purpose, to fill the form
+      if (!live.locked && q().phase === "walk" && !q().card && live.landmark !== "final" && !unlockSaid) {
         unlockSaid = true;
         say("Отпустили фонарь? Мы подождём. Кликните по лесу, чтобы взять его снова.", "wall");
       }
@@ -219,6 +225,8 @@ export function useDirector() {
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (q().card && e.code === "KeyF") {
         inspect.want();
+        // a key press is a user gesture too: take the lantern back right away
+        lockPointer(document.querySelector<HTMLCanvasElement>(".forest__stage canvas"));
         return;
       }
       if (GAME_KEYS.has(e.code)) {

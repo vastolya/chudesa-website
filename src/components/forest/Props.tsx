@@ -7,7 +7,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { mulberry32 } from "@/lib/noise";
 import { getWorld, type Prop, type PropKind } from "@/lib/world";
 import { live } from "@/lib/forest";
-import { useQuality } from "@/lib/quality";
+import { QUALITY } from "@/lib/quality";
 import { getGlowTexture } from "./creatureMaterial";
 
 /* ───────── geometry kit: every part is painted, snow settles on what faces up ───────── */
@@ -207,7 +207,7 @@ function ChunkLayer({ kind, list }: { kind: PropKind; list: Prop[] }) {
 
 export function Props() {
   const world = getWorld();
-  const drawDist = useQuality((q) => q.s.drawDist);
+  const drawDist = QUALITY.drawDist;
   const chunks = useMemo(() => {
     const map = new Map<string, Chunk>();
     for (const p of world.props) {

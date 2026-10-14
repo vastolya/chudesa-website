@@ -6,7 +6,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { landmarks, live } from "@/lib/forest";
 import { getWorld } from "@/lib/world";
-import { useQuality } from "@/lib/quality";
+import { QUALITY } from "@/lib/quality";
 import { sfxPing } from "@/lib/audio";
 import { getGlowTexture, makeCreatureMaterial, speciesMaterial, sphereGeo } from "./creatureMaterial";
 import type { Species } from "@/lib/species";
@@ -38,8 +38,8 @@ function Creature({ position, size, seed, species, morphSpeed, drift }: Creature
   const hue = seed;
   const group = useRef<THREE.Group>(null!);
   const mesh = useRef<THREE.Mesh>(null!);
-  const q = useQuality((x) => x.s);
-  // level-of-detail: tessellation by size, quality tier and distance
+  const q = QUALITY;
+  // level-of-detail: tessellation by size and distance
   const lods = useMemo(() => {
     // never drop to blocky low-poly: the smallest level is still a smooth sphere
     const f = q.detailFloor;
@@ -110,7 +110,7 @@ function Creature({ position, size, seed, species, morphSpeed, drift }: Creature
 
 export function Decor() {
   const world = getWorld();
-  const count = useQuality((x) => x.s.creatures);
+  const count = QUALITY.creatures;
   return (
     <>
       {world.creatures.slice(0, count).map((c, i) => (

@@ -201,7 +201,7 @@ function Constellation({ drive, fog, colA, colB }: BodyProps) {
       fragment: `${GLSL_COMMON} varying vec3 vW; varying vec3 vN;
         void main(){
           vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW);
-          vec3 c = vec3(1.0, 0.85, 0.5) * (0.9 + envStudio(reflect(-V, N)) * 0.9) + vec3(1.0, 0.9, 0.6) * pow(1.0 - abs(dot(N, V)), 2.0);
+          vec3 c = vec3(1.0, 0.85, 0.5) * (0.9 + envStudio(reflect(-V, N)) * 0.9) + vec3(1.0, 0.9, 0.6) * pow(max(1.0 - abs(dot(N, V)), 0.0), 2.0);
           gl_FragColor = vec4(fogIt(c, vW), uOpacity);
         }`,
     });
@@ -329,7 +329,7 @@ function Hologram({ drive, fog, colA }: BodyProps) {
             vec3 N = normalize(vN);
             if (!gl_FrontFacing) N = -N;
             vec3 V = normalize(cameraPosition - vW);
-            float fres = pow(1.0 - abs(dot(V, N)), 2.0);
+            float fres = pow(max(1.0 - abs(dot(V, N)), 0.0), 2.0);
             float stripes = pow(fract(vW.y * 22.0 - uTime * 0.6), 3.0);
             float holo = stripes * fres + fres * 1.1 + 0.05;
             float flicker = 0.85 + 0.15 * sin(uTime * 37.0) * sin(uTime * 13.0);
@@ -347,7 +347,7 @@ function Hologram({ drive, fog, colA }: BodyProps) {
         double: true,
         uniforms: { uC: { value: new THREE.Color(colA) } },
         fragment: `${GLSL_COMMON} uniform vec3 uC; varying vec3 vW; varying vec2 vUv;
-          void main(){ float a = pow(vUv.y, 1.8) * 0.35 * (0.8 + 0.2 * sin(uTime * 9.0)); gl_FragColor = vec4(fogIt(uC * a, vW), a * uOpacity); }`,
+          void main(){ float a = pow(clamp(vUv.y, 0.0, 1.0), 1.8) * 0.35 * (0.8 + 0.2 * sin(uTime * 9.0)); gl_FragColor = vec4(fogIt(uC * a, vW), a * uOpacity); }`,
       }),
     [fog, colA]
   );
@@ -478,7 +478,7 @@ const JELLY_FRAG = /* glsl */ `
     vec3 N = normalize(vN);
     if (!gl_FrontFacing) N = -N;
     vec3 V = normalize(cameraPosition - vW);
-    float fres = pow(1.0 - abs(dot(N, V)), 2.0);
+    float fres = pow(max(1.0 - abs(dot(N, V)), 0.0), 2.0);
 #ifdef CHEAP
     float wv = sin(vP.x * 9.0 + uTime) * sin(vP.y * 11.0 - uTime * 0.7) * sin(vP.z * 10.0 + 1.3);
     float veins = smoothstep(0.75, 0.98, abs(wv) * 1.6);
