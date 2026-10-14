@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPointerEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent } from "react";
 import { distTo, inspect, landmarks, live, useQuest, wonders } from "@/lib/forest";
 import { cases, factoryCounts, factorySteps, needChips, process, services, stats } from "@/lib/content";
 import { lockPointer } from "@/lib/pointerLock";
@@ -188,36 +188,211 @@ function Hud() {
   );
 }
 
-/* ───────── controls hint ───────── */
+/* ───────── controls tutorial: one skill at a time ───────── */
+type TutStep = "look" | "walk" | "move" | "esc" | "catch" | "done";
+
 function Controls() {
   const phase = useQuest((s) => s.phase);
   const ref = useRef<HTMLDivElement>(null);
+  const [step, setStep] = useState<TutStep>("look");
+  const t = useRef({
+    step: "look" as TutStep,
+    shownAt: 0, // when the current step became visible
+    wait: 0, // the next step may not appear before this
+    finishing: false,
+    looked: 0,
+    prevYaw: 0,
+    prevPitch: 0,
+    walkFrom: 0,
+    ran: 0,
+    jumpsFrom: 0,
+    jumped: false,
+    caught: false,
+    hoverSeen: false,
+    last: 0,
+  });
+
+  const coarse = useSyncExternalStore(
+    () => () => {},
+    () => window.matchMedia("(pointer: coarse)").matches,
+    () => false
+  );
+
+  // a click while aiming at something counts as "caught it"
+  useEffect(() => {
+    const onDown = () => {
+      if (live.hover) t.current.caught = true;
+    };
+    window.addEventListener("pointerdown", onDown, { passive: true });
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, []);
+
   useRaf(() => {
-    if (!ref.current) return;
-    ref.current.classList.toggle("on", phase === "walk" && live.walked < 8 && !useQuest.getState().card);
-    ["KeyW", "KeyA", "KeyS", "KeyD"].forEach((k) =>
-      ref.current!.querySelector(`.k-${k.slice(3).toLowerCase()}`)?.classList.toggle("down", live.keys.has(k))
+    const el = ref.current;
+    if (!el) return;
+    const s = t.current;
+    const now = performance.now();
+    const card = !!useQuest.getState().card;
+    if (card) s.caught = true;
+    if (live.hover) s.hoverSeen = true;
+
+    // the hint only makes sense while the player is actually in control
+    const ready = phase === "walk" && !card && (coarse || live.locked);
+    const dYaw = Math.abs(live.yaw - s.prevYaw) + Math.abs(live.pitch - s.prevPitch);
+    s.prevYaw = live.yaw;
+    s.prevPitch = live.pitch;
+
+    const go = (next: TutStep, delay: number) => {
+      s.finishing = false;
+      s.step = next;
+      s.shownAt = 0;
+      s.wait = performance.now() + delay;
+      s.walkFrom = live.walked;
+      s.jumpsFrom = live.jumps;
+      setStep(next);
+    };
+    // fade out, swap the content while hidden, then show the next one
+    const finish = (next: TutStep, delay = 900) => {
+      if (s.finishing) return;
+      s.finishing = true;
+      setTimeout(() => go(next, delay), 700);
+    };
+
+    const dt = s.last ? Math.min((now - s.last) / 1000, 0.1) : 0;
+    s.last = now;
+
+    // some steps wait for their moment: "move" — until the player has wandered ~18 m on their own,
+    // "catch" — until the crosshair first lands on something catchable
+    const gated = !s.shownAt && ((s.step === "move" && live.walked - s.walkFrom < 18) || (s.step === "catch" && !s.hoverSeen));
+    if (s.step === "catch" && s.caught && !s.shownAt) go("done", 0);
+    const due = ready && now >= s.wait && s.step !== "done" && !gated;
+    let on = due && !s.finishing;
+
+    if (due && !s.finishing) {
+      if (!s.shownAt) {
+        s.shownAt = now;
+        s.walkFrom = live.walked;
+        s.jumpsFrom = live.jumps;
+      }
+      const age = now - s.shownAt;
+      switch (s.step) {
+        case "look":
+          s.looked += dYaw;
+          if (s.looked > 1.6 && age > 1500) finish("walk", 700);
+          break;
+        case "walk":
+          if (live.walked - s.walkFrom > 7 && age > 1500) finish(coarse ? "catch" : "move", 0);
+          break;
+        case "move": {
+          const run = live.keys.has("ShiftLeft") || live.keys.has("ShiftRight");
+          if (run && live.speed > 0.2) s.ran += dt;
+          if (live.jumps > s.jumpsFrom) s.jumped = true;
+          if ((s.ran > 0.8 && s.jumped) || age > 16000) finish("esc", 4000);
+          break;
+        }
+        case "esc":
+          if (age > 7000) go("catch", 0);
+          break;
+        case "catch":
+          // stays while aiming at something, plus a few seconds after it first appears
+          on = live.hover !== null || age < 6000;
+          if (s.caught) finish("done");
+          break;
+      }
+    }
+    el.classList.toggle("on", on);
+    // keys light up while held — the player sees the hint "hear" them
+    el.querySelectorAll<HTMLElement>("kbd[data-keys]").forEach((kb) =>
+      kb.classList.toggle("down", kb.dataset.keys!.split(" ").some((c) => live.keys.has(c)))
     );
-  }, [phase]);
+  }, [phase, coarse]);
+
+  let body: ReactNode = null;
+  if (step === "look")
+    body = coarse ? (
+      <>
+        <div className="controls__icon">☝</div>
+        <p>
+          <span>
+            <b>Проведите пальцем</b> по экрану, чтобы осмотреться
+          </span>
+        </p>
+      </>
+    ) : (
+      <>
+        <div className="controls__icon controls__icon--mouse" />
+        <p>
+          <span>
+            <b>Двигайте мышью</b>, чтобы осмотреться
+          </span>
+        </p>
+      </>
+    );
+  if (step === "walk")
+    body = coarse ? (
+      <>
+        <div className="controls__icon">◎</div>
+        <p>
+          <span>
+            <b>Джойстик</b> слева — идти
+          </span>
+        </p>
+      </>
+    ) : (
+      <>
+        <div className="controls__keys">
+          <kbd className="k-w" data-keys="KeyW ArrowUp">W</kbd>
+          <kbd className="k-a" data-keys="KeyA">A</kbd>
+          <kbd className="k-s" data-keys="KeyS ArrowDown">S</kbd>
+          <kbd className="k-d" data-keys="KeyD">D</kbd>
+        </div>
+        <p>
+          <span>
+            <b>WASD</b> — идти
+          </span>
+        </p>
+      </>
+    );
+  if (step === "move")
+    body = (
+      <div className="controls__row">
+        <p>
+          <kbd className="wide" data-keys="ShiftLeft ShiftRight">Shift</kbd>
+          <b>бежать</b>
+        </p>
+        <p>
+          <kbd className="space" data-keys="Space">Space</kbd>
+          <b>прыгнуть</b>
+        </p>
+      </div>
+    );
+  if (step === "esc")
+    body = (
+      <p>
+        <kbd className="wide">Esc</kbd>
+        <span>
+          <b>отпустить фонарь</b> и освободить курсор
+        </span>
+      </p>
+    );
+  if (step === "catch")
+    body = coarse ? (
+      <p>
+        <span>
+          Чудо в прицеле — жмите <b>✦</b> справа
+        </span>
+      </p>
+    ) : (
+      <p>
+        <span>
+          Чудо в прицеле — <b>кликните</b>, чтобы поймать
+        </span>
+      </p>
+    );
+
   return (
     <div className="controls" ref={ref}>
-      <div className="controls__keys">
-        <kbd className="k-w">W</kbd>
-        <kbd className="k-a">A</kbd>
-        <kbd className="k-s">S</kbd>
-        <kbd className="k-d">D</kbd>
-      </div>
-      <ul>
-        <li>
-          <b>WASD</b> — идти, <b>Shift</b> — бежать, <b>Space</b> — прыжок
-        </li>
-        <li>
-          <b>Мышь</b> — смотреть, фонарь светит в центр прицела
-        </li>
-        <li>
-          <b>ЛКМ</b> — поймать чудо, <b>Esc</b> — освободить курсор
-        </li>
-      </ul>
+      {body}
     </div>
   );
 }
