@@ -24,14 +24,9 @@ function LanternModel({ group, flame }: { group: React.RefObject<THREE.Group | n
   const metal = <meshStandardMaterial color="#16161a" metalness={0.8} roughness={0.35} />;
   return (
     <group ref={group} position={[0.34, -0.36, -0.72]} scale={0.62}>
-      {/* handle: the arc's ends sit on the cap's slope (cone radius = 0.15 - y), stretched up into a bail */}
-      <mesh position={[0, 0.105, 0]} scale={[1, 1.7, 1]}>
-        <torusGeometry args={[0.045, 0.005, 6, 20, Math.PI]} />
-        {metal}
-      </mesh>
-      {/* finial */}
-      <mesh position={[0, 0.152, 0]}>
-        <sphereGeometry args={[0.009, 8, 6]} />
+      {/* handle: a full ring floating above the cap — not attached, on purpose */}
+      <mesh position={[0, 0.215, 0]}>
+        <torusGeometry args={[0.05, 0.006, 6, 32]} />
         {metal}
       </mesh>
       {/* cap */}

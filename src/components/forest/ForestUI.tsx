@@ -189,7 +189,7 @@ function Hud() {
 }
 
 /* ───────── controls tutorial: one skill at a time ───────── */
-type TutStep = "look" | "walk" | "move" | "esc" | "catch" | "done";
+type TutStep = "look" | "walk" | "move" | "done";
 
 function Controls() {
   const phase = useQuest((s) => s.phase);
@@ -207,8 +207,6 @@ function Controls() {
     ran: 0,
     jumpsFrom: 0,
     jumped: false,
-    caught: false,
-    hoverSeen: false,
     last: 0,
   });
 
@@ -218,23 +216,12 @@ function Controls() {
     () => false
   );
 
-  // a click while aiming at something counts as "caught it"
-  useEffect(() => {
-    const onDown = () => {
-      if (live.hover) t.current.caught = true;
-    };
-    window.addEventListener("pointerdown", onDown, { passive: true });
-    return () => window.removeEventListener("pointerdown", onDown);
-  }, []);
-
   useRaf(() => {
     const el = ref.current;
     if (!el) return;
     const s = t.current;
     const now = performance.now();
     const card = !!useQuest.getState().card;
-    if (card) s.caught = true;
-    if (live.hover) s.hoverSeen = true;
 
     // the hint only makes sense while the player is actually in control
     const ready = phase === "walk" && !card && (coarse || live.locked);
@@ -252,7 +239,7 @@ function Controls() {
       setStep(next);
     };
     // fade out, swap the content while hidden, then show the next one
-    const finish = (next: TutStep, delay = 900) => {
+    const finish = (next: TutStep, delay = 300) => {
       if (s.finishing) return;
       s.finishing = true;
       setTimeout(() => go(next, delay), 700);
@@ -261,12 +248,8 @@ function Controls() {
     const dt = s.last ? Math.min((now - s.last) / 1000, 0.1) : 0;
     s.last = now;
 
-    // some steps wait for their moment: "move" — until the player has wandered ~18 m on their own,
-    // "catch" — until the crosshair first lands on something catchable
-    const gated = !s.shownAt && ((s.step === "move" && live.walked - s.walkFrom < 18) || (s.step === "catch" && !s.hoverSeen));
-    if (s.step === "catch" && s.caught && !s.shownAt) go("done", 0);
-    const due = ready && now >= s.wait && s.step !== "done" && !gated;
-    let on = due && !s.finishing;
+    const due = ready && now >= s.wait && s.step !== "done";
+    const on = due && !s.finishing;
 
     if (due && !s.finishing) {
       if (!s.shownAt) {
@@ -278,26 +261,18 @@ function Controls() {
       switch (s.step) {
         case "look":
           s.looked += dYaw;
-          if (s.looked > 1.6 && age > 1500) finish("walk", 700);
+          if (s.looked > 1.6 && age > 1500) finish("walk");
           break;
         case "walk":
-          if (live.walked - s.walkFrom > 7 && age > 1500) finish(coarse ? "catch" : "move", 0);
+          if (live.walked - s.walkFrom > 4 && age > 1500) finish(coarse ? "done" : "move");
           break;
         case "move": {
           const run = live.keys.has("ShiftLeft") || live.keys.has("ShiftRight");
           if (run && live.speed > 0.2) s.ran += dt;
           if (live.jumps > s.jumpsFrom) s.jumped = true;
-          if ((s.ran > 0.8 && s.jumped) || age > 16000) finish("esc", 4000);
+          if ((s.ran > 0.8 && s.jumped) || age > 16000) finish("done");
           break;
         }
-        case "esc":
-          if (age > 7000) go("catch", 0);
-          break;
-        case "catch":
-          // stays while aiming at something, plus a few seconds after it first appears
-          on = live.hover !== null || age < 6000;
-          if (s.caught) finish("done");
-          break;
       }
     }
     el.classList.toggle("on", on);
@@ -366,30 +341,6 @@ function Controls() {
         </p>
       </div>
     );
-  if (step === "esc")
-    body = (
-      <p>
-        <kbd className="wide">Esc</kbd>
-        <span>
-          <b>отпустить фонарь</b> и освободить курсор
-        </span>
-      </p>
-    );
-  if (step === "catch")
-    body = coarse ? (
-      <p>
-        <span>
-          Чудо в прицеле — жмите <b>✦</b> справа
-        </span>
-      </p>
-    ) : (
-      <p>
-        <span>
-          Чудо в прицеле — <b>кликните</b>, чтобы поймать
-        </span>
-      </p>
-    );
-
   return (
     <div className="controls" ref={ref}>
       {body}
